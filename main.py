@@ -1,16 +1,63 @@
-# This is a sample Python script.
+import requests
+import json
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+AUTHORIZATION = 'NWRjMmY2NDYtOTU2Yi00ZmE3LThjYzEtNTVlMTI1YTQ0NmE2OmIxODJjYjc2LTAxN2htNGQ1OS1hOWUyLTJhNzI4YWRiZDQ0Yg=='
+RqUID = '6f0b1291-c7f3-43c6-bb2e-9f3efb2dc98e'
+class GigaChat:
 
+    def __init__(self, auth, rq):
+        self.auth = auth
+        self.rqUID = rq
+        self.get_token()
+        self.communication = []
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+    def get_token(self):
+        url = 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth'
 
+        headers = {
+            'Authorization': f'Bearer {self.auth}',
+            'RqUID': self.rqUID,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        data = {
+            'scope': 'GIGACHAT_API_PERS'
+        }
+        response = self.get(url, headers, data)
+        self.access_token = json.loads(response.text)["access_token"]
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+    def get(self, url, headers, data, verify=False, json=False):
+        if json:
+            return requests.post(url, headers=headers, json=data, verify=verify)
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+        else:
+            return requests.post(url, headers=headers, data=data, verify=verify)
+
+    def ask_a_question(self, question, temperature=0.7):
+        url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
+
+        headers = {
+            "Content-Type": "`application/json",
+            "Authorization": f"Bearer {self.access_token}"
+        }
+        self.communication.append({"role": "user", "content": question})
+        data = {
+            "model": "GigaChat:latest",
+            "messages": self.communication,
+            "temperature": temperature
+        }
+        response = self.get(url, headers, data, json=True).json()
+        content = response['choices'][0]['message']['content']
+        self.communication.append({"role": "assistant", "content": content})
+        return content
+
+    def reset(self):
+        self.communication.clear()
+
+chat = GigaChat(AUTHORIZATION, RqUID)
+while True:
+    question = input("Что бы Вы хотели спросить?\n")
+
+    if question in "Очистить историю":
+        chat.reset()
+        continue
+    print("Ответ: ", chat.ask_a_question(question))
